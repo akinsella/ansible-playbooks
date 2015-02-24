@@ -1,2 +1,13 @@
-.vagrant
+.dev/
+.tmp/
+.vagrant/
+group_vars/
+fetched/
+vars/
 .DS_Store
+*.sublime-project
+*.sublime-workspace
+node_modules/
+docker_inventory
+inventory
+!.gitignore

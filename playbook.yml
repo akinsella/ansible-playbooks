@@ -1,0 +1,63 @@
+---
+# File: playbook.yml
+# Type: playbook
+# @cli vagrant destroy; vagrant up; rm -rf fetched/*
+# @cli ansible-playbook -i vagrant_inventory playbook.yml
+
+- name: Aptitude update
+  hosts: all
+  sudo: yes
+  tags: apt_update
+  tasks:
+    - name: Setup | Update aptitude
+      apt: update_cache=yes cache_valid_time=3600
+
+- name: Ansible setup
+  hosts: all
+  sudo: yes
+  roles:
+    - role: ansible/setup
+      tags: ansible
+
+- name: Fetch facts
+  hosts: all
+  sudo: yes
+  roles:
+    - role: ansible/facts
+      tags: facts
+
+- name: Setup ansible accelerated mode
+  hosts: all
+  sudo: yes
+  roles:
+    - role: ansible/accelerated
+      tags: accelerated
+    # - role: ansible/fireball
+    #   tags: fireball
+
+
+- name: Execute playbook
+  # connection: fireball
+  # accelerate: true
+  hosts: commute:mysql-slave
+  sudo: yes
+  roles:
+    - role: database/mysql
+      tags: mysql
+
+- name: Execute playbook
+  # connection: fireball
+  # accelerate: true
+  hosts: commute:app-server
+  sudo: yes
+  roles:
+    - role: database/mysql
+      tags: mysql
+    - role: database/mongodb
+      tags: mongodb
+    - role: database/redis
+      tags: redis
+    - role: web/nginx
+      tags: nginx
+    - role: web/nodejs
+      tags: nodejs

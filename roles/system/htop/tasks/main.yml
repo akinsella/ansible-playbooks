@@ -1,0 +1,9 @@
+---
+# File: main.yml
+# Type: task
+# Part: htop
+
+
+## Install
+- name: Accelerated | Install required packages
+  apt: name={{ item }} state=latest

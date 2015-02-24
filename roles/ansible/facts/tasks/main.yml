@@ -1,0 +1,11 @@
+---
+# File: main.yml
+# Type: task
+# Part: Ansible/Facts
+
+
+## Fetch facts
+- name: Facts | Generate facts
+  template: src=hostvars.j2 dest=/tmp/facts.json
+- name: Facts | Fetch facts
+  fetch: src=/tmp/facts.json dest=fetched/{{ ansible_ssh_host }}/facts.json flat=yes fail_on_missing=yes

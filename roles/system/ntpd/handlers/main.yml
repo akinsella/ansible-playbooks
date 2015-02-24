@@ -1,0 +1,9 @@
+---
+# File: main.yml
+# Type: handler
+# Part: ntpd
+
+
+## Install
+- name: restart ntpd
+      service: name=ntpd state=restarted
