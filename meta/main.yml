@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  author: Alexis Kinsella
+  description: Install nvm and Node.js.
+  company: Helyx.io
+  license: BSD
+  min_ansible_version: 1.4
+  platforms:
+  - name: Ubuntu
+    versions:
+     - Trusty
+  categories:
+  - development
+  - packaging
+  - web
+
+dependencies: []
