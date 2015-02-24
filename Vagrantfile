@@ -81,7 +81,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     ansible.playbook = "playbook.yml"
     ansible.inventory_path = "vagrant_inventory"
     ansible.verbose = "vv"
-    ansible.tags = "mysql"
     ansible.extra_vars = {
       ntp_server: "fr.pool.ntp.org",
       nginx: {
