@@ -39,7 +39,7 @@
 - name: Execute playbook
   # connection: fireball
   # accelerate: true
-  hosts: commute:mysql-slave
+  hosts: commute:mysql_slave
   sudo: yes
   roles:
     - role: database/mysql
@@ -48,7 +48,7 @@
 - name: Execute playbook
   # connection: fireball
   # accelerate: true
-  hosts: commute:app-server
+  hosts: commute:app_server
   sudo: yes
   roles:
     - role: database/mysql
