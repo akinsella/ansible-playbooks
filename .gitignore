@@ -1,5 +1,6 @@
 .dev/
 .tmp/
+.idea/
 .vagrant/
 group_vars/
 fetched/

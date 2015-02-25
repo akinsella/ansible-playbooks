@@ -1,93 +1,80 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+BOX_MEM = ENV['BOX_MEM'] || "1536"
+BOX_NAME =  ENV['BOX_NAME'] || "ubuntu/trusty64"
+BOX_URI = ENV['BOX_URI'] || "https://vagrantcloud.com/ubuntu/boxes/trusty64/versions/14.04/providers/virtualbox.box"
+
+HOST_TLD = "LOCAL"
+
 # Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
 VAGRANTFILE_API_VERSION = "2"
 
+nodes = [
+	{:name => "vps1", :cpu => 1, :mem => 1024, :ip => "10.1.42.10", :ssh_port => 2210, :http_port => 8180, :other_port => 5199},
+	{:name => "vps2", :cpu => 1, :mem => 1024, :ip => "10.1.42.20", :ssh_port => 2220, :http_port => 8280, :other_port => 5299},
+	{:name => "vps3", :cpu => 1, :mem => 1024, :ip => "10.1.42.30", :ssh_port => 2230, :http_port => 8380, :other_port => 5399}
+]
+
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  # All Vagrant configuration is done here. The most common configuration
-  # options are documented and commented below. For a complete reference,
-  # please see the online documentation at vagrantup.com.
 
-  # Every Vagrant virtual environment requires a box to build off of.
-  config.vm.box = "ubuntu/trusty64"
+	config.vm.box = BOX_NAME
+	config.vm.box_url = BOX_URI
 
-  # The url from where the 'config.vm.box' box will be fetched if it
-  # doesn't already exist on the user's system.
-  config.vm.box_url = "https://vagrantcloud.com/ubuntu/boxes/trusty64/versions/14.04/providers/virtualbox.box"
+	config.ssh.forward_agent = true
 
-  # Setting hostname
-  config.vm.hostname = "trusty64"
+	id_rsa_ssh_key_pub = File.read(File.expand_path('~') + '/.ssh/id_rsa.pub');
 
-  # config.vm.provider :virtualbox do |vb|
-  #   vb.customize ["modifyvm", :id, "--ioapic", "on"]
-  #   vb.customize ["modifyvm", :id, "--memory", "2048"]
-  #   vb.customize ["modifyvm", :id, "--cpus", "2"]
-  # end
+	nodes.each_with_index do |opts, index|
+		config.vm.define opts[:name] do |config|
+            config.vm.hostname = "%s.%s" % [opts[:name].to_s, HOST_TLD]
+            config.vm.network :private_network, ip: opts[:ip]
 
-  # Set username if private ssh key exists..
-  # if key
-  #  config.ssh.username = user
-  #  config.ssh.private_key_path = key
-  # end
+            config.vm.provision :shell, :inline => "echo 'Copying local id_rsa SSH Key to VM auth_keys for auth purposes (login into VM included)...' && echo '#{id_rsa_ssh_key_pub }' >> /home/vagrant/.ssh/authorized_keys && chmod 600 /home/vagrant/.ssh/authorized_keys"
+            config.vm.network :forwarded_port, guest: 80, host: opts[:http_port]
+            config.vm.network :forwarded_port, guest: 5099, host: opts[:other_port]
+            config.vm.network :forwarded_port, guest: 22, host: opts[:ssh_port], id: "ssh"
 
-  # Configure SSH keys
-  id_rsa_ssh_key_pub = File.read(File.expand_path('~') + '/.ssh/id_rsa.pub');
-  config.vm.provision :shell, :inline => "echo 'Copying local id_rsa SSH Key to VM auth_keys for auth purposes (login into VM included)...' && echo '#{id_rsa_ssh_key_pub }' >> /home/vagrant/.ssh/authorized_keys && chmod 600 /home/vagrant/.ssh/authorized_keys"
+            config.vm.provider "virtualbox" do |v|
+              v.name = opts[:name]
+              v.customize ["modifyvm", :id, "--memory", BOX_MEM]
+              v.customize ["modifyvm", :id, "--ioapic", "on"]
+              v.customize ["modifyvm", :id, "--cpus", opts[:cpu]]
+              v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+              v.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+            end
 
-  # Create a forwarded port mapping which allows access to a specific port
-  # within the machine from a port on the host machine. In the example below,
-  # accessing "localhost:8080" will access port 80 on the guest machine.
-  config.vm.network :forwarded_port, guest: 80, host: 8080
-  config.vm.network :forwarded_port, guest: 5099, host: 5099
+            config.vm.provision :shell, inline: 'echo A'
 
-  # Create a private network, which allows host-only access to the machine
-  # using a specific IP.
-  # config.vm.network :private_network, ip: "192.168.33.10"
+#             config.vm.provision :hosts do |provisioner|
+#                 provisioner.autoconfigure = false
+#                 provisioner.add_localhost_hostnames = false
+#                 nodes.each do |n|
+#                     provisioner.add_host n[:ip], [ "%s.%s" % [ n[:name].to_s, HOST_TLD ], n[:name].to_s ]
+#                 end
+#             end
 
-  # Create a public network, which generally matched to bridged network.
-  # Bridged networks make the machine appear as another physical device on
-  # your network.
-  # config.vm.network :public_network
+                # provision nodes with ansible
+            if index == nodes.size - 1
+                config.vm.provision :ansible do |ansible|
+                    ansible.playbook = "playbook.yml"
+                    ansible.inventory_path = "vagrant_inventory"
+                    ansible.verbose = "vvvv"
+                    ansible.limit = "all"
+                    ansible.extra_vars = {
+                        ntp_server: "fr.pool.ntp.org",
+                    }
+                    ansible.groups = {
+                        "mysql_master" => ["vps1"],
+                        "mysql_slave" => ["vps2", "vps3"],
+                        "commute" => ["mysql_master", "mysql_slave"]
+                    }
+                end
 
-  # If true, then any SSH connections made will enable agent forwarding.
-  # Default value: false
-  # config.ssh.forward_agent = true
+            end
 
-  # Share an additional folder to the guest VM. The first argument is
-  # the path on the host to the actual folder. The second argument is
-  # the path on the guest to mount the folder. And the optional third
-  # argument is a set of non-required options.
-  # config.vm.synced_folder "../data", "/vagrant_data"
+        end
 
-  # Provider-specific configuration so you can fine-tune various
-  # backing providers for Vagrant. These expose provider-specific options.
-  # Example for VirtualBox:
-  #
-  # config.vm.provider :virtualbox do |vb|
-  #   # Don't boot with headless mode
-  #   vb.gui = true
-  #
-  #   # Use VBoxManage to customize the VM. For example to change memory:
-  #   vb.customize ["modifyvm", :id, "--memory", "1024"]
-  # end
-  #
-  # View the documentation for the provider you're using for more
-  # information on available options.
-
-  # Enable provisioning with Ansible.
-  #
-  config.vm.provision "ansible" do |ansible|
-    ansible.playbook = "playbook.yml"
-    ansible.inventory_path = "vagrant_inventory"
-    ansible.verbose = "vv"
-    ansible.extra_vars = {
-      ntp_server: "fr.pool.ntp.org",
-      nginx: {
-        port: 8008,
-        workers: 4
-      }
-    }
-  end
+	end
 
 end
